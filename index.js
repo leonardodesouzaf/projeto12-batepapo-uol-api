@@ -44,7 +44,7 @@ app.post('/participants', async function (req,res) {
                 name: user.name,
                 lastStatus: Date.now()
             });
-            db.collection("users-in").insertOne({
+            db.collection("messages").insertOne({
                 from: user.name, 
                 to: 'Todos',
                 text: 'entra na sala...', 
@@ -117,7 +117,7 @@ app.get('/messages', async function (req,res) {
 		await mongoClient.connect();
         const user = req.headers.user;
         let haveAlready = false;
-        const limit = parseInt(req.query.limit);
+        const limit = parseInt(req.query.limit)*-1;
         await db.collection("users").findOne({
             name: user
         }).then(user => {
@@ -127,15 +127,15 @@ app.get('/messages', async function (req,res) {
                 haveAlready = true;
             }
         });
-        let messagesArrayToSend = [];
         if(haveAlready === true){
             if(!limit){
-                await db.collection("messages").find({$or: [{from: user, type: 'private_message'},{to: user},{type: 'message'}] }).toArray().then(messagesArray => {
-                    res.send(messagesArray);
+                await db.collection("messages").find({$or: [{from: user, type: 'private_message'},{to: user},{type: 'message'},{type: 'status'}] }).toArray().then(messagesArray => {
+                    res.send(messagesArray.reverse());
                 });
-                
             }else{
-                res.send(messagesArrayToSend);
+                await db.collection("messages").find({$or: [{from: user, type: 'private_message'},{to: user},{type: 'message'},{type: 'status'}] }).toArray().then(messagesArray => {
+                    res.send(messagesArray.slice(limit).reverse());
+                });
             }
         }
         return res.status(201).send(); 
@@ -144,5 +144,62 @@ app.get('/messages', async function (req,res) {
 		mongoClient.close();
 	 }
 });
+
+app.post('/status', async function (req,res) {
+    try {
+		await mongoClient.connect();
+        const user = req.headers.user;
+        let haveAlready = false;
+        let lastStatus;
+        let userId;
+        await db.collection("users").findOne({
+            name: user
+        }).then(user => {
+            if(!user){
+                return res.status(404).send();
+            }else{
+                userId = user._id;
+            }
+        });
+        await db.collection("users").findOne({
+            _id: userId
+        }).then(user => {
+            if(!user){
+                return res.status(404).send();
+            }else{
+                lastStatus = user.lastStatus;
+                haveAlready = true;
+            }
+        });
+        if(haveAlready === true){
+            await db.collection("users").updateOne({ 
+                _id: userId
+            }, { $set: {lastStatus: Date.now()} });
+        }
+        return res.status(200).send(); 
+	 } catch (error) {
+	    res.status(500).send('Não foi possível conectar ao servidor!');
+		mongoClient.close();
+	 }
+});
+
+setInterval(async() => {
+    await db.collection("users").find().toArray().then(usersArray => {
+        usersArray.forEach(user => {
+            if((Date.now()-user.lastStatus)>10000){
+                db.collection("users").deleteOne({ _id: user._id });
+                db.collection("messages").insertOne({
+                    from: user.name, 
+                    to: 'Todos', 
+                    text: 'sai da sala...', 
+                    type: 'status',
+                    time: dayjs().format('HH:mm:ss')
+                });
+            }
+        });
+    });
+},15000);
+
+
 
 app.listen(5000);
