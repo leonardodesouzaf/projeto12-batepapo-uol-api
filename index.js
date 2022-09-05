@@ -112,5 +112,48 @@ app.post('/messages', async function (req,res) {
 	 }
 });
 
+app.get('/messages', async function (req,res) {
+    try {
+		await mongoClient.connect();
+        const user = req.headers.user;
+        let haveAlready = false;
+        const limit = parseInt(req.query.limit);
+        await db.collection("users").findOne({
+            name: user
+        }).then(user => {
+            if(!user){
+                return res.status(422).send('Você não está na sala!');
+            }else{
+                haveAlready = true;
+            }
+        });
+        let messagesArrayToSend = [];
+        if(haveAlready === true){
+            if(!limit){
+                await db.messages.find({ from: user, type: 'private_message' }).toArray().then(messagesArray => {
+                    /* messagesArrayToSend.push(messagesArray); */
+                });
+
+
+                /* await db.messages.find({ from: user, type: 'private_message' }).toArray().then(messagesArray => {
+                    messagesArrayToSend.push(messagesArray);
+                });
+                await db.messages.find({ to: user }).toArray().then(messagesArray => {
+                    messagesArrayToSend.push(messagesArray);
+                });
+                await db.messages.find({ type: 'message' }).toArray().then(messagesArray => {
+                    messagesArrayToSend.push(messagesArray);
+                }); */
+                res.send(messagesArrayToSend);
+            }else{
+                res.send(messagesArrayToSend);
+            }
+        }
+        return res.status(201).send(); 
+	 } catch (error) {
+	    res.status(500).send('Não foi possível conectar ao servidor!');
+		mongoClient.close();
+	 }
+});
 
 app.listen(5000);
