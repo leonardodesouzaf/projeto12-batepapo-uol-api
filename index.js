@@ -22,6 +22,7 @@ app.post('/participants', async function (req,res) {
     try {
 		await mongoClient.connect();
         const user = req.body;
+        let haveAlready = false;
         const userSchema = joi.object({
             name: joi.string().required()
         });
@@ -32,28 +33,45 @@ app.post('/participants', async function (req,res) {
         await db.collection("users").findOne({
             name: user.name
         }).then(user => {
-            if(!user){}else{
-                return res.status(409).send('Esse nome já esta sendo utilizado, digite outro!'); 
+            if(!user){
+                haveAlready = true;
+            }else{
+                return res.status(409).send('Esse nome já está sendo utilizado, digite outro!'); 
             }
         });
-        db.collection("users").insertOne({
-            name: user.name,
-            lastStatus: Date.now()
-        });
-        db.collection("users-in").insertOne({
-            from: user.name, 
-            to: 'Todos',
-            text: 'entra na sala...', 
-            type: 'status', 
-            time: dayjs().format('HH:mm:ss')
-        }) 
-
+        if(haveAlready === true){
+            db.collection("users").insertOne({
+                name: user.name,
+                lastStatus: Date.now()
+            });
+            db.collection("users-in").insertOne({
+                from: user.name, 
+                to: 'Todos',
+                text: 'entra na sala...', 
+                type: 'status', 
+                time: dayjs().format('HH:mm:ss')
+            });
+        }
         return res.status(201).send(); 
 	 } catch (error) {
 	    res.status(500).send('Não foi possível conectar ao servidor!');
 		mongoClient.close();
 	 }
 });
+
+app.get('/participants', async function (req,res) {
+    try {
+        await mongoClient.connect();
+        await db.collection("users").find().toArray().then(usersArray => {
+            res.send(usersArray);
+        });
+        return res.status(201).send(); 
+     } catch (error) {
+        res.status(500).send('Não foi possível conectar ao servidor!');
+        mongoClient.close();
+     }
+});
+
 
 
 app.listen(5000);
