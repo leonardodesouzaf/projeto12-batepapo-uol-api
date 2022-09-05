@@ -130,21 +130,10 @@ app.get('/messages', async function (req,res) {
         let messagesArrayToSend = [];
         if(haveAlready === true){
             if(!limit){
-                await db.messages.find({ from: user, type: 'private_message' }).toArray().then(messagesArray => {
-                    /* messagesArrayToSend.push(messagesArray); */
+                await db.collection("messages").find({$or: [{from: user, type: 'private_message'},{to: user},{type: 'message'}] }).toArray().then(messagesArray => {
+                    res.send(messagesArray);
                 });
-
-
-                /* await db.messages.find({ from: user, type: 'private_message' }).toArray().then(messagesArray => {
-                    messagesArrayToSend.push(messagesArray);
-                });
-                await db.messages.find({ to: user }).toArray().then(messagesArray => {
-                    messagesArrayToSend.push(messagesArray);
-                });
-                await db.messages.find({ type: 'message' }).toArray().then(messagesArray => {
-                    messagesArrayToSend.push(messagesArray);
-                }); */
-                res.send(messagesArrayToSend);
+                
             }else{
                 res.send(messagesArrayToSend);
             }
