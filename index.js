@@ -63,9 +63,8 @@ app.get('/participants', async function (req,res) {
     try {
         await mongoClient.connect();
         await db.collection("users").find().toArray().then(usersArray => {
-            res.send(usersArray);
+            return res.send(usersArray);
         });
-        return res.status(201).send(); 
      } catch (error) {
         res.status(500).send('Não foi possível conectar ao servidor!');
         mongoClient.close();
@@ -130,15 +129,14 @@ app.get('/messages', async function (req,res) {
         if(haveAlready === true){
             if(!limit){
                 await db.collection("messages").find({$or: [{from: user, type: 'private_message'},{to: user},{type: 'message'},{type: 'status'}] }).toArray().then(messagesArray => {
-                    res.send(messagesArray.reverse());
+                    return res.send(messagesArray);
                 });
             }else{
                 await db.collection("messages").find({$or: [{from: user, type: 'private_message'},{to: user},{type: 'message'},{type: 'status'}] }).toArray().then(messagesArray => {
-                    res.send(messagesArray.slice(limit).reverse());
+                    return res.send(messagesArray.slice(limit));
                 });
             }
         }
-        return res.status(201).send(); 
 	 } catch (error) {
 	    res.status(500).send('Não foi possível conectar ao servidor!');
 		mongoClient.close();
@@ -165,7 +163,7 @@ app.post('/status', async function (req,res) {
             _id: userId
         }).then(user => {
             if(!user){
-                return res.status(404).send();
+                
             }else{
                 lastStatus = user.lastStatus;
                 haveAlready = true;
